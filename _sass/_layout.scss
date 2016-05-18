@@ -98,8 +98,11 @@
  * Site footer
  */
 .site-footer {
-    border-top: 1px solid $grey-color-light;
     padding: $spacing-unit 0;
+    position: fixed;
+    width:100%;
+    padding:10px;
+    bottom: 0;
 }
 
 .footer-heading {
@@ -169,6 +172,11 @@
  */
 .page-content {
     padding: $spacing-unit 0;
+    height: 100%;
+    .wrapper{
+     height:90vh;
+
+    }
 }
 
 .page-heading {
