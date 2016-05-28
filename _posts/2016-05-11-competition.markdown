@@ -1,31 +1,83 @@
 ---
 layout: post
-title:  "Competition"
+title:  "Systems Design Review"
 date:   2016-05-11 22:26:33 -0400
-published: false
-categories: 
+published: true
+draft: true
+permalink: /:title
 ---
 
-Competition. Competition is the language my siblings and I speak to each other. It's always been apart of my family dynamic, but now that we are all 
 
 
+**PROMPT:** 
+You are using an in Key-Value Store (KVS) to store file data. 
+The KVS can only store binary data up to 2MB, write a wrapper around the KVS API (SET, GET) so that the wrapper can store files larger than 2MB.
 
-You’ll find this post in your `_posts` directory. Go ahead and edit it and re-build the site to see your changes. You can rebuild the site in many different ways, but the most common way is to run `jekyll serve`, which launches a web server and auto-regenerates your site when a file is updated.
 
-To add new posts, simply add a file in the `_posts` directory that follows the convention `YYYY-MM-DD-name-of-post.ext` and includes the necessary front matter. Take a look at the source for this post to get an idea about how it works.
+**Solution:**
+ * Wrapper's Public API be comprised of SET and GET.
+ * Wrapper will chunk files >2MB and store them using an internal key map. 
+ * Multiple clients will need to be able to use wrapper
+ * Each 2MB chunk will have header data that points to the next Chunk (Linked List style)
+ * Set() will throw error user provided key violates internal chunk keys
+ * StreamFile in 2MB chunks
 
-Jekyll also offers powerful support for code snippets:
+```
 
-{% highlight ruby %}
-def print_hi(name)
-  puts "Hi, #{name}"
-end
-print_hi('Tom')
-#=> prints 'Hi, Tom' to STDOUT.
-{% endhighlight %}
+import fs
+import buffer
 
-Check out the [Jekyll docs][jekyll-docs] for more info on how to get the most out of Jekyll. File all bugs/feature requests at [Jekyll’s GitHub repo][jekyll-gh]. If you have questions, you can ask them on [Jekyll Talk][jekyll-talk].
 
-[jekyll-docs]: http://jekyllrb.com/docs/home
-[jekyll-gh]:   https://github.com/jekyll/jekyll
-[jekyll-talk]: https://talk.jekyllrb.com/
+class wrapper {
+	constructor(kvs_connection){
+		this.kvs = kvs_connection
+	}
+	_fileStream(path){
+		return fs.createReadStream(path)
+	}
+	set(key, pathToFile){
+		if ('@@' in key){
+			throw new Error('@@ is used internally to namespace keys. ')
+		}
+		let chunkCounter = 0;
+		const stream = this._fileStream(pathToFile);
+		let count = 0;
+		let acc = Buffer.alloc(1800000);
+		let	chunk = buffer.alloc(256)
+		stream.on('data', function(chunk){
+			acc += chunk.length
+			acc.write(chunk.data)
+			if (acc > 1800000){
+				stream.pause();
+				chunk.write('@@' + key + chunkCounter) 
+				this.kvs.set(key, chunk + acc)
+				acc = Buffer.alloc(1800000)
+				chunk = buffer.alloc(256)
+				chunkCounter+= 1
+				count = 0
+				key = '@@' + key + chunkCounter
+				stream.resume()
+			}
+		})
+		stream.on('end', function(){
+			let chunk = Buffer.from('@@' + key + chunkCounter) 
+			this.kvs.set(key, chunk+acc)
+		})
+	}	
+	get(key){
+		let document = Buffer()
+		while (key){
+			let documentChunk = Buffer.from(this.kvs.get(key))
+			key = documentChunk.read(0, 256, 'utf').trim()
+			document+= documentChunk.slice(256)
+		}
+		return document
+	}
+}
+
+
+```
+
+
+Concerns:
+Key Collision

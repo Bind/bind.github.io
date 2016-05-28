@@ -10,7 +10,6 @@ title: Doug Binder
 email: douglasjbinder@gmail.com
 description: > # this means to ignore newlines until "baseurl:"
  Word vomit by yours truly.
-baseurl: "" # the subpath of your site, e.g. /blog
 url: "http://yourdomain.com" # the base hostname & protocol for your site
 twitter_username: binderdouglas
 github_username:  bind
